@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 
-const API_BASE = "https://your-render-url.onrender.com";
+const API_BASE = "https://bible-emoji-game.onrender.com";
 
 function App() {
   const [user, setUser] = useState(null);
-  const [highScore, setHighScore] = useState(null);
+  const [highScore, setHighScore] = useState(0);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
 
@@ -17,7 +17,26 @@ function App() {
   const [leaderboard, setLeaderboard] = useState([]);
 
   /* ===============================
-     REGISTER USER
+     AUTO LOGIN
+  =============================== */
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      const parsed = JSON.parse(storedUser);
+      setUser(parsed);
+      fetchHighScore(parsed.id);
+    }
+  }, []);
+
+  const fetchHighScore = async (userId) => {
+    const res = await fetch(`${API_BASE}/api/user/${userId}/highscore`);
+    const data = await res.json();
+    setHighScore(data.highscore || 0);
+  };
+
+  /* ===============================
+     REGISTER
   =============================== */
 
   const registerUser = async () => {
@@ -30,16 +49,16 @@ function App() {
     });
 
     const data = await res.json();
-    setUser(data);
 
-    // Fetch previous high score
-    const highRes = await fetch(`${API_BASE}/api/user/${data.id}/highscore`);
-    const highData = await highRes.json();
-    setHighScore(highData.highscore);
+    setUser(data);
+    localStorage.setItem("user", JSON.stringify(data));
+    setFirstName("");
+    setLastName("");
+    fetchHighScore(data.id);
   };
 
   /* ===============================
-     FETCH QUESTIONS
+     LOAD QUESTIONS
   =============================== */
 
   useEffect(() => {
@@ -51,7 +70,7 @@ function App() {
   }, [user]);
 
   /* ===============================
-     SUBMIT ANSWER
+     ANSWER
   =============================== */
 
   const submitAnswer = async (index) => {
@@ -78,17 +97,7 @@ function App() {
     }
   };
 
-  const nextQuestion = () => {
-    setSelected(null);
-    setFeedback("");
-    setCurrentIndex(prev => prev + 1);
-  };
-
-  /* ===============================
-     SUBMIT SCORE
-  =============================== */
-
-  const submitScore = async () => {
+  const goToGameOver = async () => {
     await fetch(`${API_BASE}/api/submit-score`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -98,17 +107,54 @@ function App() {
       })
     });
 
-    fetchLeaderboard();
+    await fetchHighScore(user.id);
+
+    const lb = await fetch(`${API_BASE}/api/leaderboard`);
+    const lbData = await lb.json();
+    setLeaderboard(lbData);
+
+    setCurrentIndex(questions.length);
   };
 
-  const fetchLeaderboard = async () => {
-    const res = await fetch(`${API_BASE}/api/leaderboard`);
-    const data = await res.json();
-    setLeaderboard(data);
+  const nextQuestion = async () => {
+    const isLastQuestion = currentIndex + 1 === questions.length;
+
+    if (isLastQuestion) {
+      await goToGameOver();
+      return;
+    }
+
+    setSelected(null);
+    setFeedback("");
+    setCurrentIndex(prev => prev + 1);
   };
 
   /* ===============================
-     REGISTRATION SCREEN
+     RESET / EXIT
+  =============================== */
+
+  const resetGame = () => {
+    setCurrentIndex(0);
+    setScore(0);
+    setSelected(null);
+    setFeedback("");
+    setLeaderboard([]);
+  };
+
+  const exitGame = () => {
+    localStorage.removeItem("user");
+    setUser(null);
+    setQuestions([]);
+    setScore(0);
+    setCurrentIndex(0);
+    setSelected(null);
+    setFeedback("");
+    setLeaderboard([]);
+    setHighScore(0);
+  };
+
+  /* ===============================
+     REGISTRATION
   =============================== */
 
   if (!user) {
@@ -134,18 +180,19 @@ function App() {
     return <div className="container">Loading...</div>;
   }
 
-  if (currentIndex >= questions.length) {
+  /* ===============================
+     GAME OVER
+  =============================== */
+
+  if (currentIndex === questions.length) {
     return (
       <div className="container">
         <h1>Game Over</h1>
         <p>Your Score: {score}/{questions.length}</p>
+        <p>Your High Score: {highScore}</p>
 
-        {highScore && (
-          <p>Your Previous High Score: {highScore}</p>
-        )}
-
-        <button onClick={submitScore}>Submit Score</button>
-        <button onClick={fetchLeaderboard}>View Leaderboard</button>
+        <button onClick={resetGame}>Start New Game</button>
+        <button onClick={exitGame}>Exit</button>
 
         {leaderboard.length > 0 && (
           <div>
@@ -161,12 +208,16 @@ function App() {
     );
   }
 
+  /* ===============================
+     GAME PLAY
+  =============================== */
+
   const current = questions[currentIndex];
 
   return (
     <div className="container">
       <h1>Hello {user.first_name}!</h1>
-      <p>High Score: {highScore || 0}</p>
+      <p>High Score: {highScore}</p>
 
       <div className="emoji">{current.emojis}</div>
 
@@ -188,6 +239,9 @@ function App() {
       )}
 
       <p>Score: {score}</p>
+
+      {/* ONLY QUIT BUTTON DURING GAME */}
+      <button onClick={goToGameOver}>Quit Game</button>
     </div>
   );
 }
