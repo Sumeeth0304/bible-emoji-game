@@ -8,20 +8,33 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// Get all questions (without correct answer)
+/*
+  GET QUESTIONS
+  - Shuffles options
+  - Does NOT send correct answer index
+  - Secure for frontend
+*/
 app.get("/api/questions", (req, res) => {
-  const safeQuestions = questions.map(q => ({
-    id: q.id,
-    emojis: q.emojis,
-    options: q.options
-  }));
+  const shuffledQuestions = questions.map(q => {
+    const shuffledOptions = [...q.options].sort(() => Math.random() - 0.5);
 
-  res.json(safeQuestions);
+    return {
+      id: q.id,
+      emojis: q.emojis,
+      options: shuffledOptions
+    };
+  });
+
+  res.json(shuffledQuestions);
 });
 
-// Check answer
+/*
+  POST ANSWER
+  - Validates using original data
+  - Compares strings (safe even after shuffle)
+*/
 app.post("/api/answer", (req, res) => {
-  const { questionId, selectedIndex } = req.body;
+  const { questionId, selectedAnswer } = req.body;
 
   const question = questions.find(q => q.id === questionId);
 
@@ -29,12 +42,21 @@ app.post("/api/answer", (req, res) => {
     return res.status(404).json({ message: "Question not found" });
   }
 
-  const isCorrect = question.correctAnswerIndex === selectedIndex;
+  const correctAnswer = question.options[question.correctAnswerIndex];
+
+  const isCorrect = selectedAnswer === correctAnswer;
 
   res.json({
     correct: isCorrect,
-    correctAnswer: question.options[question.correctAnswerIndex]
+    correctAnswer
   });
+});
+
+/*
+  Optional Root Route
+*/
+app.get("/", (req, res) => {
+  res.send("Bible Emoji Game API is running 🚀");
 });
 
 app.listen(PORT, () => {

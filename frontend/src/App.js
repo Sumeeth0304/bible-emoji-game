@@ -29,8 +29,8 @@ function App() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        questionId: current.id,
-        selectedIndex: index
+      questionId: current.id,
+      selectedAnswer: current.options[index]
       })
     })
       .then(res => res.json())
