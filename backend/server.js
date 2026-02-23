@@ -16,7 +16,7 @@ const pool = new Pool({
 });
 
 /* ===============================
-   HELPER: SHUFFLE FUNCTION
+   HELPER: SHUFFLE
 ================================= */
 
 function shuffleArray(array) {
@@ -33,15 +33,11 @@ function shuffleArray(array) {
 ================================= */
 
 app.get("/api/questions", (req, res) => {
-  // Shuffle question order
-  const shuffledQuestions = shuffleArray(questions).map(q => {
-    return {
-      id: q.id,
-      emojis: q.emojis,
-      // Shuffle answer options too
-      options: shuffleArray(q.options)
-    };
-  });
+  const shuffledQuestions = shuffleArray(questions).map(q => ({
+    id: q.id,
+    emojis: q.emojis,
+    options: shuffleArray(q.options)
+  }));
 
   res.json(shuffledQuestions);
 });
@@ -102,6 +98,22 @@ app.get("/api/user/:id/highscore", async (req, res) => {
   );
 
   res.json(result.rows[0]);
+});
+
+/* ===============================
+   DELETE ACCOUNT
+================================= */
+
+app.delete("/api/user/:id", async (req, res) => {
+  const { id } = req.params;
+
+  // Delete scores first (safe even if cascade exists)
+  await pool.query("DELETE FROM scores WHERE user_id = $1", [id]);
+
+  // Delete user
+  await pool.query("DELETE FROM users WHERE id = $1", [id]);
+
+  res.json({ message: "Account deleted successfully" });
 });
 
 app.get("/api/leaderboard", async (req, res) => {

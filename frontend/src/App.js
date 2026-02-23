@@ -16,10 +16,6 @@ function App() {
   const [score, setScore] = useState(0);
   const [leaderboard, setLeaderboard] = useState([]);
 
-  /* ===============================
-     AUTO LOGIN
-  =============================== */
-
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
@@ -34,10 +30,6 @@ function App() {
     const data = await res.json();
     setHighScore(data.highscore || 0);
   };
-
-  /* ===============================
-     REGISTER
-  =============================== */
 
   const registerUser = async () => {
     if (!firstName || !lastName) return;
@@ -57,10 +49,6 @@ function App() {
     fetchHighScore(data.id);
   };
 
-  /* ===============================
-     LOAD QUESTIONS
-  =============================== */
-
   useEffect(() => {
     if (user) {
       fetch(`${API_BASE}/api/questions`)
@@ -68,10 +56,6 @@ function App() {
         .then(data => setQuestions(data));
     }
   }, [user]);
-
-  /* ===============================
-     ANSWER
-  =============================== */
 
   const submitAnswer = async (index) => {
     if (selected !== null) return;
@@ -116,22 +100,22 @@ function App() {
     setCurrentIndex(questions.length);
   };
 
-  const nextQuestion = async () => {
-    const isLastQuestion = currentIndex + 1 === questions.length;
+  const deleteAccount = async () => {
+    const confirmDelete = window.confirm(
+      "Are you sure you want to permanently delete your account?"
+    );
 
-    if (isLastQuestion) {
-      await goToGameOver();
-      return;
-    }
+    if (!confirmDelete) return;
 
-    setSelected(null);
-    setFeedback("");
-    setCurrentIndex(prev => prev + 1);
+    await fetch(`${API_BASE}/api/user/${user.id}`, {
+      method: "DELETE"
+    });
+
+    localStorage.removeItem("user");
+    setUser(null);
+    setHighScore(0);
+    setLeaderboard([]);
   };
-
-  /* ===============================
-     RESET / EXIT
-  =============================== */
 
   const resetGame = () => {
     setCurrentIndex(0);
@@ -140,22 +124,6 @@ function App() {
     setFeedback("");
     setLeaderboard([]);
   };
-
-  const exitGame = () => {
-    localStorage.removeItem("user");
-    setUser(null);
-    setQuestions([]);
-    setScore(0);
-    setCurrentIndex(0);
-    setSelected(null);
-    setFeedback("");
-    setLeaderboard([]);
-    setHighScore(0);
-  };
-
-  /* ===============================
-     REGISTRATION
-  =============================== */
 
   if (!user) {
     return (
@@ -180,10 +148,6 @@ function App() {
     return <div className="container">Loading...</div>;
   }
 
-  /* ===============================
-     GAME OVER
-  =============================== */
-
   if (currentIndex === questions.length) {
     return (
       <div className="container">
@@ -192,7 +156,7 @@ function App() {
         <p>Your High Score: {highScore}</p>
 
         <button onClick={resetGame}>Start New Game</button>
-        <button onClick={exitGame}>Exit</button>
+        <button onClick={deleteAccount}>Delete Account</button>
 
         {leaderboard.length > 0 && (
           <div>
@@ -207,10 +171,6 @@ function App() {
       </div>
     );
   }
-
-  /* ===============================
-     GAME PLAY
-  =============================== */
 
   const current = questions[currentIndex];
 
@@ -234,13 +194,13 @@ function App() {
       {feedback && (
         <>
           <p>{feedback}</p>
-          <button onClick={nextQuestion}>Next</button>
+          <button onClick={() => setCurrentIndex(prev => prev + 1)}>
+            Next
+          </button>
         </>
       )}
 
       <p>Score: {score}</p>
-
-      {/* ONLY QUIT BUTTON DURING GAME */}
       <button onClick={goToGameOver}>Quit Game</button>
     </div>
   );
