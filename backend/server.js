@@ -16,17 +16,30 @@ const pool = new Pool({
 });
 
 /* ===============================
+   HELPER: SHUFFLE FUNCTION
+================================= */
+
+function shuffleArray(array) {
+  const newArray = [...array];
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
+}
+
+/* ===============================
    GAME ROUTES
 ================================= */
 
 app.get("/api/questions", (req, res) => {
-  const shuffledQuestions = questions.map(q => {
-    const shuffledOptions = [...q.options].sort(() => Math.random() - 0.5);
-
+  // Shuffle question order
+  const shuffledQuestions = shuffleArray(questions).map(q => {
     return {
       id: q.id,
       emojis: q.emojis,
-      options: shuffledOptions
+      // Shuffle answer options too
+      options: shuffleArray(q.options)
     };
   });
 
@@ -80,6 +93,17 @@ app.post("/api/submit-score", async (req, res) => {
   res.json({ message: "Score saved" });
 });
 
+app.get("/api/user/:id/highscore", async (req, res) => {
+  const { id } = req.params;
+
+  const result = await pool.query(
+    "SELECT MAX(score) as highscore FROM scores WHERE user_id = $1",
+    [id]
+  );
+
+  res.json(result.rows[0]);
+});
+
 app.get("/api/leaderboard", async (req, res) => {
   const result = await pool.query(`
     SELECT u.first_name, u.last_name, MAX(s.score) as score
@@ -91,17 +115,6 @@ app.get("/api/leaderboard", async (req, res) => {
   `);
 
   res.json(result.rows);
-});
-
-app.get("/api/user/:id/highscore", async (req, res) => {
-  const { id } = req.params;
-
-  const result = await pool.query(
-    "SELECT MAX(score) as highscore FROM scores WHERE user_id = $1",
-    [id]
-  );
-
-  res.json(result.rows[0]);
 });
 
 app.listen(PORT, () => {
