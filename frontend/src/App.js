@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 
-const API_BASE = "https://bible-emoji-game.onrender.com";
+const API_BASE = "https://your-render-url.onrender.com";
 
 function App() {
   const [user, setUser] = useState(null);
+  const [highScore, setHighScore] = useState(null);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
 
@@ -13,21 +14,7 @@ function App() {
   const [selected, setSelected] = useState(null);
   const [feedback, setFeedback] = useState("");
   const [score, setScore] = useState(0);
-
   const [leaderboard, setLeaderboard] = useState([]);
-
-  /* ===============================
-     FETCH QUESTIONS
-  =============================== */
-
-  useEffect(() => {
-    if (user) {
-      fetch(`${API_BASE}/api/questions`)
-        .then(res => res.json())
-        .then(data => setQuestions(data))
-        .catch(err => console.error(err));
-    }
-  }, [user]);
 
   /* ===============================
      REGISTER USER
@@ -44,7 +31,24 @@ function App() {
 
     const data = await res.json();
     setUser(data);
+
+    // Fetch previous high score
+    const highRes = await fetch(`${API_BASE}/api/user/${data.id}/highscore`);
+    const highData = await highRes.json();
+    setHighScore(highData.highscore);
   };
+
+  /* ===============================
+     FETCH QUESTIONS
+  =============================== */
+
+  useEffect(() => {
+    if (user) {
+      fetch(`${API_BASE}/api/questions`)
+        .then(res => res.json())
+        .then(data => setQuestions(data));
+    }
+  }, [user]);
 
   /* ===============================
      SUBMIT ANSWER
@@ -67,16 +71,12 @@ function App() {
     const data = await res.json();
 
     if (data.correct) {
-      setFeedback("Correct!");
       setScore(prev => prev + 1);
+      setFeedback("Correct!");
     } else {
       setFeedback(`Wrong! Correct answer: ${data.correctAnswer}`);
     }
   };
-
-  /* ===============================
-     NEXT QUESTION
-  =============================== */
 
   const nextQuestion = () => {
     setSelected(null);
@@ -94,16 +94,12 @@ function App() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         userId: user.id,
-        score: score
+        score
       })
     });
 
     fetchLeaderboard();
   };
-
-  /* ===============================
-     FETCH LEADERBOARD
-  =============================== */
 
   const fetchLeaderboard = async () => {
     const res = await fetch(`${API_BASE}/api/leaderboard`);
@@ -134,28 +130,25 @@ function App() {
     );
   }
 
-  /* ===============================
-     LOADING STATE
-  =============================== */
-
   if (questions.length === 0) {
     return <div className="container">Loading...</div>;
   }
-
-  /* ===============================
-     GAME OVER SCREEN
-  =============================== */
 
   if (currentIndex >= questions.length) {
     return (
       <div className="container">
         <h1>Game Over</h1>
         <p>Your Score: {score}/{questions.length}</p>
+
+        {highScore && (
+          <p>Your Previous High Score: {highScore}</p>
+        )}
+
         <button onClick={submitScore}>Submit Score</button>
         <button onClick={fetchLeaderboard}>View Leaderboard</button>
 
         {leaderboard.length > 0 && (
-          <div style={{ marginTop: "20px" }}>
+          <div>
             <h2>Leaderboard</h2>
             {leaderboard.map((player, index) => (
               <p key={index}>
@@ -168,15 +161,12 @@ function App() {
     );
   }
 
-  /* ===============================
-     GAME SCREEN
-  =============================== */
-
   const current = questions[currentIndex];
 
   return (
     <div className="container">
-      <h1>Bible Emoji Guess</h1>
+      <h1>Hello {user.first_name}!</h1>
+      <p>High Score: {highScore || 0}</p>
 
       <div className="emoji">{current.emojis}</div>
 
@@ -192,14 +182,12 @@ function App() {
 
       {feedback && (
         <>
-          <p className="feedback">{feedback}</p>
+          <p>{feedback}</p>
           <button onClick={nextQuestion}>Next</button>
         </>
       )}
 
-      <p style={{ marginTop: "15px" }}>
-        Score: {score}
-      </p>
+      <p>Score: {score}</p>
     </div>
   );
 }

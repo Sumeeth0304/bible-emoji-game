@@ -10,7 +10,6 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// Connect to PostgreSQL
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
@@ -50,9 +49,17 @@ app.post("/api/answer", (req, res) => {
    USER ROUTES
 ================================= */
 
-// Register user
 app.post("/api/register", async (req, res) => {
   const { firstName, lastName } = req.body;
+
+  const existing = await pool.query(
+    "SELECT * FROM users WHERE first_name = $1 AND last_name = $2",
+    [firstName, lastName]
+  );
+
+  if (existing.rows.length > 0) {
+    return res.json(existing.rows[0]);
+  }
 
   const result = await pool.query(
     "INSERT INTO users (first_name, last_name) VALUES ($1, $2) RETURNING *",
@@ -62,7 +69,6 @@ app.post("/api/register", async (req, res) => {
   res.json(result.rows[0]);
 });
 
-// Submit score
 app.post("/api/submit-score", async (req, res) => {
   const { userId, score } = req.body;
 
@@ -74,17 +80,28 @@ app.post("/api/submit-score", async (req, res) => {
   res.json({ message: "Score saved" });
 });
 
-// Leaderboard
 app.get("/api/leaderboard", async (req, res) => {
   const result = await pool.query(`
-    SELECT users.first_name, users.last_name, scores.score
-    FROM scores
-    JOIN users ON scores.user_id = users.id
-    ORDER BY scores.score DESC
+    SELECT u.first_name, u.last_name, MAX(s.score) as score
+    FROM scores s
+    JOIN users u ON s.user_id = u.id
+    GROUP BY u.id
+    ORDER BY score DESC
     LIMIT 10
   `);
 
   res.json(result.rows);
+});
+
+app.get("/api/user/:id/highscore", async (req, res) => {
+  const { id } = req.params;
+
+  const result = await pool.query(
+    "SELECT MAX(score) as highscore FROM scores WHERE user_id = $1",
+    [id]
+  );
+
+  res.json(result.rows[0]);
 });
 
 app.listen(PORT, () => {
