@@ -266,6 +266,42 @@ body {
 
 .error {
   color: #ef4444;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.auth-tabs {
+  display: flex;
+  gap: 0;
+  margin-top: 16px;
+  border-radius: 999px;
+  background: rgba(241, 245, 249, 0.9);
+  padding: 4px;
+}
+
+.auth-tab {
+  flex: 1;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.auth-tab.active {
+  background: white;
+  color: #4f46e5;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.auth-hint {
+  margin-top: 12px;
+  font-size: 0.85rem;
+  color: #64748b;
 }
 
 .next {

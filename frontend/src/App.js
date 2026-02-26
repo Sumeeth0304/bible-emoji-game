@@ -7,8 +7,12 @@ const API_BASE =
 function App() {
   const [user, setUser] = useState(null);
   const [highScore, setHighScore] = useState(0);
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
+  const [authMode, setAuthMode] = useState("signup"); // "signup" | "login"
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
 
   const [questions, setQuestions] = useState([]);
   const [questionsLoading, setQuestionsLoading] = useState(false);
@@ -51,25 +55,60 @@ function App() {
   };
 
   /* ===============================
-     REGISTER
+     SIGN UP / LOGIN
   =============================== */
 
-  const registerUser = async () => {
-    if (!firstName || !lastName) return;
+  const handleAuth = async (e) => {
+    e?.preventDefault();
+    setAuthError("");
 
-    const res = await fetch(`${API_BASE}/api/register`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ firstName, lastName })
-    });
+    const u = username.trim();
+    if (!u) {
+      setAuthError("Enter a username.");
+      return;
+    }
+    if (!password) {
+      setAuthError("Enter a password.");
+      return;
+    }
+    if (authMode === "signup") {
+      if (password.length < 6) {
+        setAuthError("Password must be at least 6 characters.");
+        return;
+      }
+      if (password !== confirmPassword) {
+        setAuthError("Passwords do not match.");
+        return;
+      }
+    }
 
-    const data = await res.json();
+    setAuthLoading(true);
+    try {
+      const endpoint = authMode === "signup" ? "/api/register" : "/api/login";
+      const res = await fetch(`${API_BASE}${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: u, password })
+      });
 
-    setUser(data);
-    localStorage.setItem("user", JSON.stringify(data));
-    setFirstName("");
-    setLastName("");
-    fetchHighScore(data.id);
+      const data = await res.json();
+
+      if (!res.ok) {
+        setAuthError(data.error || "Something went wrong.");
+        return;
+      }
+
+      setUser(data);
+      localStorage.setItem("user", JSON.stringify(data));
+      setUsername("");
+      setPassword("");
+      setConfirmPassword("");
+      fetchHighScore(data.id);
+    } catch (err) {
+      setAuthError("Network error. Try again.");
+    } finally {
+      setAuthLoading(false);
+    }
   };
 
   /* ===============================
@@ -185,25 +224,65 @@ function App() {
           <h1>Bible Emoji Challenge</h1>
           <p className="subtitle">Guess the Bible character from the emojis.</p>
 
-          <div className="form">
-            <input
-              placeholder="First Name"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-            />
-            <input
-              placeholder="Last Name"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-            />
+          <div className="auth-tabs">
             <button
-              className="primary-button"
-              onClick={registerUser}
-              disabled={!firstName || !lastName}
+              type="button"
+              className={"auth-tab " + (authMode === "signup" ? "active" : "")}
+              onClick={() => { setAuthMode("signup"); setAuthError(""); }}
             >
-              Start Game
+              Sign up
+            </button>
+            <button
+              type="button"
+              className={"auth-tab " + (authMode === "login" ? "active" : "")}
+              onClick={() => { setAuthMode("login"); setAuthError(""); }}
+            >
+              Log in
             </button>
           </div>
+
+          <form className="form" onSubmit={handleAuth}>
+            <input
+              type="text"
+              placeholder="Username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoComplete="username"
+              disabled={authLoading}
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete={authMode === "signup" ? "new-password" : "current-password"}
+              disabled={authLoading}
+            />
+            {authMode === "signup" && (
+              <input
+                type="password"
+                placeholder="Confirm password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                autoComplete="new-password"
+                disabled={authLoading}
+              />
+            )}
+            {authError && <p className="error">{authError}</p>}
+            <button
+              type="submit"
+              className="primary-button"
+              disabled={authLoading}
+            >
+              {authLoading ? "Please wait…" : authMode === "signup" ? "Sign up" : "Log in"}
+            </button>
+          </form>
+
+          <p className="auth-hint">
+            {authMode === "signup"
+              ? "Already have an account? Log in above."
+              : "No account? Switch to Sign up."}
+          </p>
         </div>
       </div>
     );
@@ -286,7 +365,7 @@ function App() {
               <h2>Leaderboard</h2>
               {leaderboard.map((player, index) => (
                 <p key={index}>
-                  {index + 1}. {player.first_name} {player.last_name} — {player.score}
+                  {index + 1}. {player.username || [player.first_name, player.last_name].filter(Boolean).join(" ").trim() || "—"} — {player.score}
                 </p>
               ))}
             </div>
@@ -307,7 +386,7 @@ function App() {
       <div className="card">
         <div className="header">
           <div>
-            <h1>Hello {user.first_name}!</h1>
+            <h1>Hello {user.username || user.first_name}!</h1>
             <p className="subtitle">High Score: {highScore}</p>
           </div>
           <p className="question-count">

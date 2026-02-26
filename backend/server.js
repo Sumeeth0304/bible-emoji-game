@@ -1,11 +1,13 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const bcrypt = require("bcrypt");
 const { Pool } = require("pg");
 const questions = require("./data/questions");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const SALT_ROUNDS = 10;
 
 app.use(cors());
 app.use(express.json());
@@ -55,27 +57,73 @@ app.post("/api/answer", (req, res) => {
 });
 
 /* ===============================
-   USER ROUTES
+   AUTH / USER ROUTES
 ================================= */
 
 app.post("/api/register", async (req, res) => {
-  const { firstName, lastName } = req.body;
+  const { username, password } = req.body;
+
+  if (!username || !password || typeof username !== "string" || typeof password !== "string") {
+    return res.status(400).json({ error: "Username and password are required." });
+  }
+
+  const trimmed = username.trim().toLowerCase();
+  if (trimmed.length < 2) {
+    return res.status(400).json({ error: "Username must be at least 2 characters." });
+  }
+  if (password.length < 6) {
+    return res.status(400).json({ error: "Password must be at least 6 characters." });
+  }
 
   const existing = await pool.query(
-    "SELECT * FROM users WHERE first_name = $1 AND last_name = $2",
-    [firstName, lastName]
+    "SELECT id FROM users WHERE LOWER(username) = $1",
+    [trimmed]
   );
 
   if (existing.rows.length > 0) {
-    return res.json(existing.rows[0]);
+    return res.status(409).json({ error: "Username already taken." });
+  }
+
+  const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+
+  const result = await pool.query(
+    `INSERT INTO users (username, password_hash, first_name, last_name)
+     VALUES ($1, $2, $1, '') RETURNING id, username, first_name, last_name`,
+    [trimmed, passwordHash]
+  );
+
+  const row = result.rows[0];
+  res.status(201).json({ id: row.id, username: row.username, first_name: row.first_name, last_name: row.last_name });
+});
+
+app.post("/api/login", async (req, res) => {
+  const { username, password } = req.body;
+
+  if (!username || !password || typeof username !== "string" || typeof password !== "string") {
+    return res.status(400).json({ error: "Username and password are required." });
   }
 
   const result = await pool.query(
-    "INSERT INTO users (first_name, last_name) VALUES ($1, $2) RETURNING *",
-    [firstName, lastName]
+    "SELECT id, username, password_hash, first_name, last_name FROM users WHERE LOWER(username) = $1",
+    [username.trim().toLowerCase()]
   );
 
-  res.json(result.rows[0]);
+  if (result.rows.length === 0) {
+    return res.status(401).json({ error: "Invalid username or password." });
+  }
+
+  const user = result.rows[0];
+  const match = await bcrypt.compare(password, user.password_hash);
+  if (!match) {
+    return res.status(401).json({ error: "Invalid username or password." });
+  }
+
+  res.json({
+    id: user.id,
+    username: user.username,
+    first_name: user.first_name,
+    last_name: user.last_name
+  });
 });
 
 app.post("/api/submit-score", async (req, res) => {
@@ -118,10 +166,10 @@ app.delete("/api/user/:id", async (req, res) => {
 
 app.get("/api/leaderboard", async (req, res) => {
   const result = await pool.query(`
-    SELECT u.first_name, u.last_name, MAX(s.score) as score
+    SELECT u.username, u.first_name, u.last_name, MAX(s.score) as score
     FROM scores s
     JOIN users u ON s.user_id = u.id
-    GROUP BY u.id
+    GROUP BY u.id, u.username, u.first_name, u.last_name
     ORDER BY score DESC
     LIMIT 10
   `);
