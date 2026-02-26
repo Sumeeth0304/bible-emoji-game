@@ -180,44 +180,78 @@ function App() {
 
   if (!user) {
     return (
-      <div className="container">
-        <h1>Register to Play</h1>
-        <input
-          placeholder="First Name"
-          value={firstName}
-          onChange={(e) => setFirstName(e.target.value)}
-        />
-        <input
-          placeholder="Last Name"
-          value={lastName}
-          onChange={(e) => setLastName(e.target.value)}
-        />
-        <button onClick={registerUser}>Start Game</button>
+      <div className="app">
+        <div className="card">
+          <h1>Bible Emoji Challenge</h1>
+          <p className="subtitle">Guess the Bible character from the emojis.</p>
+
+          <div className="form">
+            <input
+              placeholder="First Name"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+            />
+            <input
+              placeholder="Last Name"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+            />
+            <button
+              className="primary-button"
+              onClick={registerUser}
+              disabled={!firstName || !lastName}
+            >
+              Start Game
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (questionsLoading) {
-    return <div className="container">Loading...</div>;
+    return (
+      <div className="app">
+        <div className="card">
+          <p className="loading">Loading questions...</p>
+        </div>
+      </div>
+    );
   }
 
   if (questionsError) {
     return (
-      <div className="container">
-        <h1>Couldn’t load the game</h1>
-        <p>{questionsError}</p>
-        <button onClick={loadQuestions}>Retry</button>
-        <button onClick={logout}>Clear saved login</button>
+      <div className="app">
+        <div className="card">
+          <h1>Couldn’t load the game</h1>
+          <p className="error">{questionsError}</p>
+          <div className="actions">
+            <button className="primary-button" onClick={loadQuestions}>
+              Retry
+            </button>
+            <button className="secondary-button" onClick={logout}>
+              Clear saved login
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (questions.length === 0) {
     return (
-      <div className="container">
-        <h1>No questions available</h1>
-        <button onClick={loadQuestions}>Retry</button>
-        <button onClick={logout}>Clear saved login</button>
+      <div className="app">
+        <div className="card">
+          <h1>No questions available</h1>
+          <div className="actions">
+            <button className="primary-button" onClick={loadQuestions}>
+              Retry
+            </button>
+            <button className="secondary-button" onClick={logout}>
+              Clear saved login
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -228,24 +262,36 @@ function App() {
 
   if (currentIndex === questions.length) {
     return (
-      <div className="container">
-        <h1>Game Over</h1>
-        <p>Your Score: {score}/{questions.length}</p>
-        <p>Your High Score: {highScore}</p>
+      <div className="app">
+        <div className="card">
+          <h1>Game Over</h1>
+          <p className="score">
+            Your Score: <strong>{score}</strong> / {questions.length}
+          </p>
+          <p className="score">
+            Your High Score: <strong>{highScore}</strong>
+          </p>
 
-        <button onClick={resetGame}>Start New Game</button>
-        <button onClick={logout}>Logout</button>
-
-        {leaderboard.length > 0 && (
-          <div>
-            <h2>Leaderboard</h2>
-            {leaderboard.map((player, index) => (
-              <p key={index}>
-                {index + 1}. {player.first_name} {player.last_name} — {player.score}
-              </p>
-            ))}
+          <div className="actions">
+            <button className="primary-button" onClick={resetGame}>
+              Start New Game
+            </button>
+            <button className="secondary-button" onClick={logout}>
+              Logout
+            </button>
           </div>
-        )}
+
+          {leaderboard.length > 0 && (
+            <div className="leaderboard">
+              <h2>Leaderboard</h2>
+              {leaderboard.map((player, index) => (
+                <p key={index}>
+                  {index + 1}. {player.first_name} {player.last_name} — {player.score}
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -257,31 +303,51 @@ function App() {
   const current = questions[currentIndex];
 
   return (
-    <div className="container">
-      <h1>Hello {user.first_name}!</h1>
-      <p>High Score: {highScore}</p>
+    <div className="app">
+      <div className="card">
+        <div className="header">
+          <div>
+            <h1>Hello {user.first_name}!</h1>
+            <p className="subtitle">High Score: {highScore}</p>
+          </div>
+          <p className="question-count">
+            Question {currentIndex + 1} / {questions.length}
+          </p>
+        </div>
 
-      <div className="emoji">{current.emojis}</div>
+        <div className="emoji-bubble">
+          <div className="emoji">{current.emojis}</div>
+        </div>
 
-      {current.options.map((option, index) => (
-        <button
-          key={index}
-          onClick={() => submitAnswer(index)}
-          disabled={selected !== null}
-        >
-          {option}
-        </button>
-      ))}
+        <div className="options">
+          {current.options.map((option, index) => (
+            <button
+              key={index}
+              className="option-button"
+              onClick={() => submitAnswer(index)}
+              disabled={selected !== null}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
 
-      {feedback && (
-        <>
-          <p>{feedback}</p>
-          <button onClick={handleNext}>Next</button>
-        </>
-      )}
+        {feedback && (
+          <div className="footer">
+            <p className="feedback">{feedback}</p>
+            <button className="primary-button next" onClick={handleNext}>
+              Next
+            </button>
+          </div>
+        )}
 
-      <p>Score: {score}</p>
-      <button onClick={goToGameOver}>Quit Game</button>
+        <div className="bottom-bar">
+          <p className="score">Score: {score}</p>
+          <button className="secondary-button" onClick={goToGameOver}>
+            Quit Game
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
