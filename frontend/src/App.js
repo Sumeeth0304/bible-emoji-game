@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 
-const API_BASE = "https://bible-emoji-game.onrender.com";
+const API_BASE =
+  process.env.REACT_APP_API_BASE || "https://bible-emoji-game.onrender.com";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -10,6 +11,8 @@ function App() {
   const [lastName, setLastName] = useState("");
 
   const [questions, setQuestions] = useState([]);
+  const [questionsLoading, setQuestionsLoading] = useState(false);
+  const [questionsError, setQuestionsError] = useState("");
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selected, setSelected] = useState(null);
   const [feedback, setFeedback] = useState("");
@@ -73,12 +76,32 @@ function App() {
      LOAD QUESTIONS
   =============================== */
 
+  const loadQuestions = async () => {
+    setQuestionsLoading(true);
+    setQuestionsError("");
+
+    try {
+      const res = await fetch(`${API_BASE}/api/questions`);
+      if (!res.ok) {
+        throw new Error(`Failed to load questions (HTTP ${res.status})`);
+      }
+      const data = await res.json();
+      setQuestions(Array.isArray(data) ? data : []);
+    } catch (e) {
+      setQuestions([]);
+      setQuestionsError(
+        e instanceof Error ? e.message : "Failed to load questions"
+      );
+    } finally {
+      setQuestionsLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (user) {
-      fetch(`${API_BASE}/api/questions`)
-        .then(res => res.json())
-        .then(data => setQuestions(data));
+      loadQuestions();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   /* ===============================
@@ -174,8 +197,29 @@ function App() {
     );
   }
 
-  if (questions.length === 0) {
+  if (questionsLoading) {
     return <div className="container">Loading...</div>;
+  }
+
+  if (questionsError) {
+    return (
+      <div className="container">
+        <h1>Couldn’t load the game</h1>
+        <p>{questionsError}</p>
+        <button onClick={loadQuestions}>Retry</button>
+        <button onClick={logout}>Clear saved login</button>
+      </div>
+    );
+  }
+
+  if (questions.length === 0) {
+    return (
+      <div className="container">
+        <h1>No questions available</h1>
+        <button onClick={loadQuestions}>Retry</button>
+        <button onClick={logout}>Clear saved login</button>
+      </div>
+    );
   }
 
   /* ===============================
