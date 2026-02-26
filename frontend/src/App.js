@@ -85,6 +85,11 @@ function App() {
      ANSWER
   =============================== */
 
+  useEffect(() => {
+    setSelected(null);
+    setFeedback("");
+  }, [currentIndex]);
+
   const submitAnswer = async (index) => {
     if (selected !== null) return;
 
@@ -107,6 +112,16 @@ function App() {
     } else {
       setFeedback(`Wrong! Correct answer: ${data.correctAnswer}`);
     }
+  };
+
+  const handleNext = async () => {
+    const nextIndex = currentIndex + 1;
+    if (nextIndex >= questions.length) {
+      await goToGameOver();
+      return;
+    }
+
+    setCurrentIndex(nextIndex);
   };
 
   const goToGameOver = async () => {
@@ -217,9 +232,7 @@ function App() {
       {feedback && (
         <>
           <p>{feedback}</p>
-          <button onClick={() => setCurrentIndex(prev => prev + 1)}>
-            Next
-          </button>
+          <button onClick={handleNext}>Next</button>
         </>
       )}
 
